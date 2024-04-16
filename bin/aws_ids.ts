@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { AwsIdsStack } from '../lib/aws_ids-stack';
+import { MyEC2Stack } from '../lib/aws_ids-stack';
 
 const app = new cdk.App();
-new AwsIdsStack(app, 'AwsIdsStack', {
+new MyEC2Stack(app, 'MyEC2Stack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

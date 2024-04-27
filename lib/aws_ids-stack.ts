@@ -4,6 +4,7 @@ import { Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
 
 export class MyEC2Stack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -13,18 +14,9 @@ export class MyEC2Stack extends Stack {
     // Create an IAM user
     const awsUser = iam.User.fromUserArn(this, 'AWS-Developer', "arn:aws:iam::844062109895:user/AWS-Developer");
 
-
     // EC2 resources
     // Create an SSH key pair
-    const key = new ec2.KeyPair(this, 'EC2KeyPair', {
-      type: ec2.KeyPairType.ED25519,
-      keyPairName: 'ids_ec2_key', // Specify the name of the key pair
-    });
-
-    // Output the private key to a file
-    const privateKeyPath = '/home/muzan/.ssh/ec2_private_key'; // Specify the path where you want to save the private key
-    fs.writeFileSync(privateKeyPath, key.keyPairFingerprint); // Write the private key to a file
-    console.log(`Private key saved to ${privateKeyPath}`);
+    const key = ec2.KeyPair.fromKeyPairName(this, 'ec2loginkey', "ec2_login_key");
 
     // VPC
     const vpc = new ec2.Vpc(this, 'MyVpc', {
@@ -61,14 +53,35 @@ export class MyEC2Stack extends Stack {
 
     // Allow SSH inbound traffic on TCP port 22
     ec2InstanceSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22));
-
-    const userData = ec2.UserData.forLinux();
-    userData.addCommands(
-      'yum update -y',
-      'yum install -y python3',
-      'pip install scikit-learn numpy matplotlib pandas scipy'
-    )
     
+    
+    const logGroup = new logs.LogGroup(this, 'EC2LogGroup', {
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+    // Create an IAM role for EC2 instance
+    const instanceRole = new iam.Role(this, 'EC2_Logging_Role', {
+      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
+      inlinePolicies: {
+        "LogWritePolicy": new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              actions: [
+                'logs:CreateLogGroup', 
+                'logs:CreateLogStream', 
+                'logs:PutLogEvents'
+              ],
+              resources: ['*']
+            }),
+            new iam.PolicyStatement({
+              actions: ['ssm:GetParameter'],
+              resources: ['*']
+            })
+          ]
+        })
+      }
+    });
+    logGroup.grantWrite(instanceRole)
+
     // EC2 Instance
     const instance = new ec2.Instance(this, 'IDS_EC2_Instance', {
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO), // Using t3.micro instance type
@@ -76,9 +89,12 @@ export class MyEC2Stack extends Stack {
       vpc: vpc,
       keyPair: key,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
-      userData: userData,
       securityGroup: ec2InstanceSecurityGroup,
+      role: instanceRole
     });
+    
+    const userDataScript = fs.readFileSync('./lib/ec2_setup_script.sh', 'utf8');
+    instance.addUserData(userDataScript);
 
     // Associate IAM user with EC2 instance
     instance.addToRolePolicy(new iam.PolicyStatement({

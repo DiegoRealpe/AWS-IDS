@@ -73,12 +73,30 @@ export class MyEC2Stack extends Stack {
       },
       configs: {
         install: new ec2.InitConfig([
+          // Copy source files
+          ec2.InitFile.fromFileInline(
+            '/home/ec2-user/train_ids_model.py',
+            './src/train_ids_model.py',
+          ),
+          ec2.InitFile.fromFileInline(
+            '/home/ec2-user/map_output_traffic.py',
+            './src/map_output_traffic.py',
+          ),
+          ec2.InitFile.fromFileInline(
+            '/home/ec2-user/process_output_traffic.sh',
+            './src/process_output_traffic.sh',
+          ),
+          // Copy setup file
           ec2.InitFile.fromFileInline(
             '/etc/ec2_setup_script.sh',
             './lib/ec2_setup_script.sh',
           ),
-          ec2.InitCommand.shellCommand('chmod +x /etc/ec2_setup_script.sh'),
-          ec2.InitCommand.shellCommand('cd /home/ec2-user'),
+          ec2.InitCommand.shellCommand(
+            'chmod +x /etc/ec2_setup_script.sh \
+            /home/ec2-user/process_output_traffic.sh \
+            /home/ec2-user/map_output_traffic.py \
+            /home/ec2-user/train_ids_model.py'
+          ),
           ec2.InitCommand.shellCommand('/etc/ec2_setup_script.sh'),
         ]),
       },

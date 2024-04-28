@@ -61,26 +61,28 @@ export class MyEC2Stack extends Stack {
     // Create an IAM role for EC2 instance
     const instanceRole = new iam.Role(this, 'EC2_Logging_Role', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
-      inlinePolicies: {
-        "LogWritePolicy": new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              actions: [
-                'logs:CreateLogGroup', 
-                'logs:CreateLogStream', 
-                'logs:PutLogEvents'
-              ],
-              resources: ['*']
-            }),
-            new iam.PolicyStatement({
-              actions: ['ssm:GetParameter'],
-              resources: ['*']
-            })
-          ]
-        })
-      }
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy")
+      ]
     });
     logGroup.grantWrite(instanceRole)
+
+    const cloudInit = ec2.CloudFormationInit.fromConfigSets({
+      configSets: {
+        default: ['install'],
+      },
+      configs: {
+        install: new ec2.InitConfig([
+          ec2.InitFile.fromFileInline(
+            '/etc/ec2_setup_script.sh',
+            './lib/ec2_setup_script.sh',
+          ),
+          ec2.InitCommand.shellCommand('chmod +x /etc/ec2_setup_script.sh'),
+          ec2.InitCommand.shellCommand('cd /home/ec2-user'),
+          ec2.InitCommand.shellCommand('/etc/ec2_setup_script.sh'),
+        ]),
+      },
+    })
 
     // EC2 Instance
     const instance = new ec2.Instance(this, 'IDS_EC2_Instance', {
@@ -90,11 +92,12 @@ export class MyEC2Stack extends Stack {
       keyPair: key,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       securityGroup: ec2InstanceSecurityGroup,
-      role: instanceRole
+      role: instanceRole,
+      init: cloudInit,
+      initOptions: {
+        timeout: cdk.Duration.minutes(15),
+      }
     });
-    
-    const userDataScript = fs.readFileSync('./lib/ec2_setup_script.sh', 'utf8');
-    instance.addUserData(userDataScript);
 
     // Associate IAM user with EC2 instance
     instance.addToRolePolicy(new iam.PolicyStatement({

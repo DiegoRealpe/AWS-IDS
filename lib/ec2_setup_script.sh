@@ -4,7 +4,7 @@ yum update -y
 amazon-linux-extras install epel
 yum groupinstall -y "Development Tools"
 yum install -y \
-    nc git amazon-cloudwatch-agent p7zip \
+    nc git amazon-cloudwatch-agent p7zip inotify-tools \
     zlib-devel bzip2 bzip2-devel readline-devel \
     sqlite sqlite-devel tk-devel libffi-devel xz-devel openssl11-devel
 yum update -y
@@ -30,6 +30,8 @@ pip install git+https://github.com/hieulw/cicflowmeter
 wget https://github.com/DiegoRealpe/DER_ML_ADS/raw/main/dataset/DNP3/Iowa_State_University_DER-DNP3_2022.7z
 7za x Iowa_State_University_DER-DNP3_2022.7z -p'P0w34Cy&er#DER#DNP3' -o'.'
 rm -rf Iowa_State_University_DER-DNP3_2022.7z
+mkdir raw_traffic
+mkdir discarded_traffic
 EOF
 
-echo "Setup Complete $HOME"
+echo "Setup Complete"

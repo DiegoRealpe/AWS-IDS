@@ -102,6 +102,17 @@ export class MyEC2Stack extends Stack {
             /home/ec2-user/train_ids_model.py \
             /home/ec2-user/test_ids_model.py'
           ),
+          ec2.InitCommand.shellCommand('mkdir /home/ec2-user/assets'),
+          // Copying some sample csv to test scripts
+          ec2.InitFile.fromFileInline(
+            '/home/ec2-user/assets/dataset.csv',
+            './assets/dataset.csv',
+          ),
+          ec2.InitFile.fromFileInline(
+            '/home/ec2-user/assets/output.csv',
+            './assets/output.csv',
+          ),
+          ec2.InitCommand.shellCommand('chown -R ec2-user:ec2-user /home/ec2-user'),
           ec2.InitCommand.shellCommand('/etc/ec2_setup_script.sh'),
         ]),
       },
@@ -109,7 +120,7 @@ export class MyEC2Stack extends Stack {
 
     // EC2 Instance
     const instance = new ec2.Instance(this, 'IDS_EC2_Instance', {
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO), // Using t3.micro instance type
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.SMALL), // Using t3.micro instance type
       machineImage: ubuntuAmi,
       vpc: vpc,
       keyPair: key,

@@ -30,7 +30,7 @@ pip install git+https://github.com/hieulw/cicflowmeter
 mkdir raw_traffic
 mkdir discarded_traffic
 mkdir models
-mkdir assets
+
 cd assets
 wget https://github.com/DiegoRealpe/DER_ML_ADS/raw/main/dataset/DNP3/Iowa_State_University_DER-DNP3_2022.7z
 7za x Iowa_State_University_DER-DNP3_2022.7z -p'P0w34Cy&er#DER#DNP3' -o'.'

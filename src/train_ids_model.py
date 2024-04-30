@@ -1,8 +1,12 @@
 import numpy as np
 import pandas as pd
 import sys
-# from sklearn.model_selection import train_test_split, ShuffleSplit, cross_val_score
+import skops.io as sio
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.preprocessing import MinMaxScaler, RobustScaler
+from sklearn.model_selection import train_test_split, cross_val_score, ShuffleSplit, GridSearchCV
 
+# Training the IDS model with sample DNP3 traffic data
 def main():
     ## Read and Parse Step
     if len(sys.argv) < 2:
@@ -15,9 +19,61 @@ def main():
     except FileNotFoundError:
         print(f"File {dataset_csv_filename} not found")
         return
+    
+    # Order of the 47 most independent features
+    X_reduced_columns = [
+        "Dst Port",
+        "Protocol",
+        "Flow Duration",
+        "Fwd Packet Length Min",
+        "Bwd Packet Length Max",
+        "Bwd Packet Length Min",
+        "Bwd Packet Length Mean",
+        "Bwd Packet Length Std",
+        "Flow IAT Mean",
+        "Flow IAT Std",
+        "Flow IAT Max",
+        "Flow IAT Min",
+        "Fwd IAT Total",
+        "Fwd IAT Mean",
+        "Fwd IAT Std",
+        "Fwd IAT Max",
+        "Fwd IAT Min",
+        "Bwd IAT Total",
+        "Bwd IAT Mean",
+        "Bwd IAT Std",
+        "Bwd IAT Max",
+        "Fwd PSH Flags",
+        "Bwd Packets/s",
+        "Packet Length Min",
+        "Packet Length Mean",
+        "FIN Flag Count",
+        "SYN Flag Count",
+        "RST Flag Count",
+        "PSH Flag Count",
+        "ACK Flag Count",
+        "ECE Flag Count",
+        "Average Packet Size",
+        "Bwd Segment Size Avg",
+        "Bwd Bytes/Bulk Avg",
+        "Bwd Packet/Bulk Avg",
+        "Bwd Bulk Rate Avg",
+        "FWD Init Win Bytes",
+        "Bwd Init Win Bytes",
+        "Fwd Seg Size Min",
+        "Active Mean",
+        "Active Std",
+        "Active Max",
+        "Active Min",
+        "Idle Mean",
+        "Idle Std",
+        "Idle Max",
+        "Idle Min"
+    ]
 
     # Splitting into feature matrix and labels
     X_dataset_df = dataset_df.drop(columns=['Label'])
+    # Some features representing counts of packets or bytes have values of -1 which makes no sense
     y_dataset_df = dataset_df['Label'].map({
             'Benign': 0, 
             'DoS': 1, 
@@ -26,13 +82,51 @@ def main():
             'RT': 4, 
             'DNP3_Stealthy': 5
         }).astype(int).to_frame()
-
+    
     ## Preprocessing Step
-    X_dataset_matrix = np.log10(X_dataset_df.to_numpy())
-    # Centering
-    sum_vec = np.sum(X_dataset_matrix, axis=0)
-    mean_vec = sum_vec / X_dataset_matrix.shape[0]
-    X_dataset_matrix = np.divide(X_dataset_matrix, mean_vec)
+    # Removing columns with 0 values
+    X_dataset = X_dataset_df.drop(columns=[
+        'Fwd URG Flags',
+        'Fwd Packet/Bulk Avg',
+        'Fwd Bytes/Bulk Avg',
+        'Fwd Bulk Rate Avg',
+        'CWR Flag Count',
+        'Bwd URG Flags',
+        'Bwd PSH Flags'
+    ]).to_numpy()
+    y_dataset = y_dataset_df.to_numpy()
+    # print(f"dataset {X_dataset[0, :]}\n")
+    
+    ## Centering and Scaling
+    robust_scaler_model = RobustScaler(with_centering=True, with_scaling=True).fit(X_dataset)
+    X_scaled_dataset = robust_scaler_model.transform(X_dataset)
+    minmax_scaler_model = MinMaxScaler().fit(X_scaled_dataset)
+    X_scaled_dataset = minmax_scaler_model.transform(X_scaled_dataset)
+    # print(f"scaled dataset {X_scaled_dataset[0, :]}\n")
+
+    ## Feature Selection
+    feature_selection_model = SelectKBest(score_func=chi2, k=47).fit(X_scaled_dataset, y_dataset)
+    X_reduced_dataset = feature_selection_model.transform(X_scaled_dataset)
+    # print(f"reduced dataset {X_reduced_dataset[0, :]}\n")
+
+    ## Split training and testing
+    # Splitting the dataset into 9-1 parts to train and test
+    # TODO
+
+    ## Hyperparameters Selection
+    # TODO
+
+    ## Train model
+    # TODO
+
+    ## Test model and get stats
+    # TODO
+
+    ## Model Persistance
+    # Persist trained model here
+    sio.dump(obj=robust_scaler_model, file="./models/robust_scaler_model.skops")
+    sio.dump(obj=minmax_scaler_model, file="./models/minmax_scaler_model.skops")
+    sio.dump(obj=feature_selection_model, file="./models/feature_selection_model.skops")
 
 
 if __name__ == "__main__":

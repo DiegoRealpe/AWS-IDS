@@ -3,23 +3,27 @@ import pandas as pd
 import sys
 
 def main():
-    if len(sys.argv) < 3:
+    create_aggregate_file = True
+    aggregated_csv_filename = "./assets/aggregated.csv"
+    if (len(sys.argv) < 2) or (len(sys.argv) > 3):
         print("Usage: python map_output_traffic.py <raw csv> <aggregated csv>")
-        return
+        return 
+    elif len(sys.argv) == 2:
+        print(f"No aggregate file defined, creating one at {aggregated_csv_filename}")
+    else:
+        try:
+            aggregated_traffic_df = pd.read_csv(sys.argv[2])
+            aggregated_csv_filename = sys.argv[2]
+            create_aggregate_file = False
+        except FileNotFoundError:
+            print(f"File {aggregated_csv_filename} not found, creating new aggregated file")
+            pass
 
     raw_csv_filename = sys.argv[1]
-    aggregated_csv_filename = sys.argv[2]
-
     try:
         raw_traffic_df = pd.read_csv(raw_csv_filename)
     except FileNotFoundError:
         print(f"File {raw_csv_filename} not found")
-        return
-
-    try:
-        aggregated_traffic_df = pd.read_csv(aggregated_csv_filename)
-    except FileNotFoundError:
-        print(f"File {aggregated_csv_filename} not found")
         return
 
     column_mapping = {
@@ -109,18 +113,34 @@ def main():
 
     # Dropping irrelevant features and map column names to dataset
     mapped_traffic_df = raw_traffic_df \
-        .drop(columns=['src_ip', 'dst_ip', 'src_port', 'timestamp']) \
+        .drop(columns=[
+            'src_ip', 
+            'dst_ip', 
+            'src_port', 
+            'timestamp',
+            # Dropping empty columns 
+            'fwd_urg_flags',
+            'fwd_pkts_b_avg',
+            'fwd_byts_b_avg',
+            'fwd_blk_rate_avg',
+            'cwr_flag_count',
+            'bwd_urg_flags',
+            'bwd_psh_flags'
+        ]) \
         .rename(columns=column_mapping)
 
-    # Union the rows of both DataFrames into a single DataFrame
-    result_df = pd.concat([aggregated_traffic_df, mapped_traffic_df], ignore_index=True)
+    if create_aggregate_file:
+        result_df = mapped_traffic_df
+    else:
+        # Union the rows of both DataFrames into a single DataFrame
+        result_df = pd.concat([aggregated_traffic_df, mapped_traffic_df], ignore_index=True)
+        print(f"aggregated_df->{aggregated_traffic_df.shape}")
 
     # Write the result back
     result_df.to_csv(aggregated_csv_filename, index=False)
     print(f"""Merged data written to {aggregated_csv_filename}\nShapes: 
         raw_df->{raw_traffic_df.shape}
         mapped_df->{mapped_traffic_df.shape}
-        aggregated_df->{aggregated_traffic_df.shape}
         result_df->{result_df.shape}
     """)
 

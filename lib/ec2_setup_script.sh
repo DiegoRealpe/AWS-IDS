@@ -24,14 +24,17 @@ sudo -u ec2-user -i <<'EOF'
 pyenv install 3.11.0
 pyenv global 3.11.0
 pip install --upgrade pip
-pip install scikit-learn numpy matplotlib pandas scipy
+pip install scikit-learn numpy matplotlib pandas scipy skops
 pip install git+https://github.com/hieulw/cicflowmeter
 
+mkdir raw_traffic
+mkdir discarded_traffic
+mkdir models
+mkdir assets
+cd assets
 wget https://github.com/DiegoRealpe/DER_ML_ADS/raw/main/dataset/DNP3/Iowa_State_University_DER-DNP3_2022.7z
 7za x Iowa_State_University_DER-DNP3_2022.7z -p'P0w34Cy&er#DER#DNP3' -o'.'
 rm -rf Iowa_State_University_DER-DNP3_2022.7z
-mkdir raw_traffic
-mkdir discarded_traffic
 EOF
 
 echo "Setup Complete"

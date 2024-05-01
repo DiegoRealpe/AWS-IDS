@@ -1,4 +1,4 @@
-# import numpy as np
+from numpy import ndarray
 import pandas as pd
 import sys
 from sklearn.svm import SVC
@@ -26,8 +26,10 @@ def main():
     robust_scaler_model: RobustScaler = sio.load(file="./models/robust_scaler_model.skops", trusted=True)
     minmax_scaler_model: MinMaxScaler = sio.load(file="./models/minmax_scaler_model.skops", trusted=True)
     feature_selection_model: SelectKBest = sio.load(file="./models/feature_selection_model.skops", trusted=True)
-    # svm_optimal_model: SVC = sio.load(file="./models/svm_optimal_model.skops", trusted=True)
-    # dt_optimal_model: DecisionTreeClassifier = sio.load(file="./models/dt_optimal_model.skops", trusted=True)
+    svm_model: SVC = sio.load(file="./models/svm_model.skops", trusted=True)
+    dt_model: DecisionTreeClassifier = sio.load(file="./models/dt_model.skops", trusted=True)
+    svm_confusion_matrix: ndarray = sio.load(file="./models/svm_confusion_matrix.skops", trusted=True)
+    dt_confusion_matrix: ndarray = sio.load(file="./models/dt_confusion_matrix.skops", trusted=True)
 
     # Normalizing
     traffic_matrix_scaled = robust_scaler_model.transform(traffic_matrix)
@@ -36,9 +38,22 @@ def main():
     traffic_matrix_reduced = feature_selection_model.transform(traffic_matrix_scaled)
 
     # Predict with trained model
-    # TODO
+    svm_y_pred = svm_model.predict(traffic_matrix_reduced)
+    dt_y_pred = dt_model.predict(traffic_matrix_reduced)
+    print(f"SVM Prediction {svm_y_pred}\n")
+    print(f"DT Prediction {dt_y_pred}\n")
 
-    # Print accuracy
+    # # Print accuracy
+    # svm_accuracy = accuracy_score(y_test, svm_y_pred)
+    # dt_accuracy = accuracy_score(y_test, dt_y_pred)
+    # svm_precision = precision_score(y_test, svm_y_pred)
+    # dt_precision = precision_score(y_test, dt_y_pred)
+    # svm_confusion_matrix = confusion_matrix(y_test, svm_y_pred)
+    # dt_confusion_matrix = confusion_matrix(y_test, dt_y_pred)
+    # print(f"SVM Accuracy {svm_accuracy}\n")
+    # print(f"SVM Precision {svm_precision}\n")
+    
+
 
 
 if __name__ == "__main__":

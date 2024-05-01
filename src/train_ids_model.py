@@ -1,13 +1,13 @@
 # import numpy as np
 import pandas as pd
 import sys
-from sklearn.base import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score
 import skops.io as sio
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
-from sklearn.model_selection import train_test_split, GridSearchCV #, cross_val_score, ShuffleSplit
+from sklearn.model_selection import train_test_split
 
 # Training the IDS model with sample DNP3 traffic data
 def main():
@@ -114,34 +114,44 @@ def main():
 
     ## Split training and testing
     # Splitting the dataset into 8-2 parts to train and test
-    X_halved, _, y_halved, _ = train_test_split(X_reduced_dataset, y_dataset, test_size=0.5, random_state=42)
-    X_train, X_test, y_train, y_test = train_test_split(X_halved, y_halved, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X_reduced_dataset, y_dataset, test_size=0.2, random_state=42)
 
     print("Started Training\n")
 
     # Train SVC model
     svm_model = SVC(C=0.1, kernel="sigmoid").fit(X_train, y_train)
     print("SVC Finished Training!\n")
-    sio.dump(obj=svm_model, file="./models/svm_model.skops")
     # Test SVC Accuracy
     svm_y_pred = svm_model.predict(X_test)
     svm_accuracy = accuracy_score(y_test, svm_y_pred)
-    print("SVM Accuracy", svm_accuracy)
+    svm_precision = precision_score(y_test, svm_y_pred)
+    svm_confusion_matrix = confusion_matrix(y_test, svm_y_pred)
+    print(f"SVM Accuracy {svm_accuracy}\n")
+    print(f"SVM Precision {svm_precision}\n")
 
     # Train DT model
     dt_model = DecisionTreeClassifier().fit(X_train, y_train)
     print("DT Finished Training!\n")
-    sio.dump(obj=dt_model, file="./models/dt_model.skops")
     # Test DT Accuracy
     dt_y_pred = dt_model.predict(X_test)
     dt_accuracy = accuracy_score(y_test, dt_y_pred)
-    print("DT Accuracy", dt_accuracy)
+    dt_precision = precision_score(y_test, dt_y_pred)
+    dt_confusion_matrix = confusion_matrix(y_test, dt_y_pred)
+    print(f"DT Accuracy {dt_accuracy}\n")
+    print(f"DT Precision {dt_precision}\n")
+
+    print(f"SVM Confusion Matrix\n\n {svm_confusion_matrix}\n\n")
+    print(f"DT Confusion Matrix\n\n {dt_confusion_matrix}\n\n")
 
     ## Model Persistance
     # Persist trained model here
+    sio.dump(obj=svm_model, file="./models/svm_model.skops")
+    sio.dump(obj=dt_model, file="./models/dt_model.skops")
     sio.dump(obj=robust_scaler_model, file="./models/robust_scaler_model.skops")
     sio.dump(obj=minmax_scaler_model, file="./models/minmax_scaler_model.skops")
     sio.dump(obj=feature_selection_model, file="./models/feature_selection_model.skops")
+    sio.dump(obj=svm_confusion_matrix, file="./models/svm_confusion_matrix.skops")
+    sio.dump(obj=dt_confusion_matrix, file="./models/dt_confusion_matrix.skops")
 
 
 if __name__ == "__main__":

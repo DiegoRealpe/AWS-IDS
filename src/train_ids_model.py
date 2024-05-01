@@ -114,7 +114,7 @@ def main():
 
     ## Split training and testing
     # Splitting the dataset into 8-2 parts to train and test
-    X_train, X_test, y_train, y_test = train_test_split(X_reduced_dataset, y_dataset, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X_reduced_dataset, y_dataset, test_size=0.3, random_state=42)
 
     print("Started Training\n")
 
@@ -124,7 +124,7 @@ def main():
     # Test SVC Accuracy
     svm_y_pred = svm_model.predict(X_test)
     svm_accuracy = accuracy_score(y_test, svm_y_pred)
-    svm_precision = precision_score(y_test, svm_y_pred)
+    svm_precision = precision_score(y_test, svm_y_pred, average=None)
     svm_confusion_matrix = confusion_matrix(y_test, svm_y_pred)
     print(f"SVM Accuracy {svm_accuracy}\n")
     print(f"SVM Precision {svm_precision}\n")
@@ -135,7 +135,7 @@ def main():
     # Test DT Accuracy
     dt_y_pred = dt_model.predict(X_test)
     dt_accuracy = accuracy_score(y_test, dt_y_pred)
-    dt_precision = precision_score(y_test, dt_y_pred)
+    dt_precision = precision_score(y_test, dt_y_pred, average=None)
     dt_confusion_matrix = confusion_matrix(y_test, dt_y_pred)
     print(f"DT Accuracy {dt_accuracy}\n")
     print(f"DT Precision {dt_precision}\n")

@@ -1,6 +1,8 @@
 # import numpy as np
 import pandas as pd
 import sys
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 import skops.io as sio
 from sklearn.feature_selection import SelectKBest
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
@@ -21,10 +23,11 @@ def main():
         return
     
     # Load stored models
-    # ml_model = sio.load(file="./models/ml_model.skops", trusted=True)
     robust_scaler_model: RobustScaler = sio.load(file="./models/robust_scaler_model.skops", trusted=True)
     minmax_scaler_model: MinMaxScaler = sio.load(file="./models/minmax_scaler_model.skops", trusted=True)
     feature_selection_model: SelectKBest = sio.load(file="./models/feature_selection_model.skops", trusted=True)
+    # svm_optimal_model: SVC = sio.load(file="./models/svm_optimal_model.skops", trusted=True)
+    # dt_optimal_model: DecisionTreeClassifier = sio.load(file="./models/dt_optimal_model.skops", trusted=True)
 
     # Normalizing
     traffic_matrix_scaled = robust_scaler_model.transform(traffic_matrix)

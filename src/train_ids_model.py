@@ -1,10 +1,13 @@
-import numpy as np
+# import numpy as np
 import pandas as pd
 import sys
+from sklearn.base import accuracy_score
 import skops.io as sio
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
-from sklearn.model_selection import train_test_split, cross_val_score, ShuffleSplit, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV #, cross_val_score, ShuffleSplit
 
 # Training the IDS model with sample DNP3 traffic data
 def main():
@@ -70,32 +73,32 @@ def main():
         "Idle Max",
         "Idle Min"
     ]
+    y_labels_map = {
+        "Benign": 0, 
+        "DoS": 1, 
+        "Scanning": 2, 
+        "RA": 3, 
+        "RT": 4, 
+        "DNP3_Stealthy": 5
+    }
 
     # Splitting into feature matrix and labels
-    X_dataset_df = dataset_df.drop(columns=['Label'])
+    X_dataset_df = dataset_df.drop(columns=["Label"])
     # Some features representing counts of packets or bytes have values of -1 which makes no sense
-    y_dataset_df = dataset_df['Label'].map({
-            'Benign': 0, 
-            'DoS': 1, 
-            'Scanning': 2, 
-            'RA': 3, 
-            'RT': 4, 
-            'DNP3_Stealthy': 5
-        }).astype(int).to_frame()
+    y_dataset_df = dataset_df["Label"].map(y_labels_map).astype(int).to_frame()
     
     ## Preprocessing Step
     # Removing columns with 0 values
     X_dataset = X_dataset_df.drop(columns=[
-        'Fwd URG Flags',
-        'Fwd Packet/Bulk Avg',
-        'Fwd Bytes/Bulk Avg',
-        'Fwd Bulk Rate Avg',
-        'CWR Flag Count',
-        'Bwd URG Flags',
-        'Bwd PSH Flags'
+        "Fwd URG Flags",
+        "Fwd Packet/Bulk Avg",
+        "Fwd Bytes/Bulk Avg",
+        "Fwd Bulk Rate Avg",
+        "CWR Flag Count",
+        "Bwd URG Flags",
+        "Bwd PSH Flags"
     ]).to_numpy()
-    y_dataset = y_dataset_df.to_numpy()
-    # print(f"dataset {X_dataset[0, :]}\n")
+    y_dataset = y_dataset_df.to_numpy().ravel()
     
     ## Centering and Scaling
     robust_scaler_model = RobustScaler(with_centering=True, with_scaling=True).fit(X_dataset)
@@ -110,17 +113,29 @@ def main():
     # print(f"reduced dataset {X_reduced_dataset[0, :]}\n")
 
     ## Split training and testing
-    # Splitting the dataset into 9-1 parts to train and test
-    # TODO
+    # Splitting the dataset into 8-2 parts to train and test
+    X_halved, _, y_halved, _ = train_test_split(X_reduced_dataset, y_dataset, test_size=0.5, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X_halved, y_halved, test_size=0.2, random_state=42)
 
-    ## Hyperparameters Selection
-    # TODO
+    print("Started Training\n")
 
-    ## Train model
-    # TODO
+    # Train SVC model
+    svm_model = SVC(C=0.1, kernel="sigmoid").fit(X_train, y_train)
+    print("SVC Finished Training!\n")
+    sio.dump(obj=svm_model, file="./models/svm_model.skops")
+    # Test SVC Accuracy
+    svm_y_pred = svm_model.predict(X_test)
+    svm_accuracy = accuracy_score(y_test, svm_y_pred)
+    print("SVM Accuracy", svm_accuracy)
 
-    ## Test model and get stats
-    # TODO
+    # Train DT model
+    dt_model = DecisionTreeClassifier().fit(X_train, y_train)
+    print("DT Finished Training!\n")
+    sio.dump(obj=dt_model, file="./models/dt_model.skops")
+    # Test DT Accuracy
+    dt_y_pred = dt_model.predict(X_test)
+    dt_accuracy = accuracy_score(y_test, dt_y_pred)
+    print("DT Accuracy", dt_accuracy)
 
     ## Model Persistance
     # Persist trained model here

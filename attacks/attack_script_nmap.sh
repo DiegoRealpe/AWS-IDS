@@ -12,3 +12,6 @@ nmap -sV -p 20000 6.87.152.210
 
 # Upload packet capture to AWS
 scp -i ec2_login_key.pem "$filename" ec2-user@3.149.237.185:/home/ec2-user/nmap/
+
+# Cleanup
+rm "$filename"

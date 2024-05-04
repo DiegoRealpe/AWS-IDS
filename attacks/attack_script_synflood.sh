@@ -11,4 +11,7 @@ python flood_IED4_SS1.py
 python flood_IED8_SS2.py
 
 # Upload packet capture to AWS
-# scp -i ec2_login_key.pem "$filename" ec2-user@3.149.237.185:~/synflood/
+scp -i ec2_login_key.pem "$filename" ec2-user@3.149.237.185:~/synflood/
+
+# Cleanup
+rm "$filename"

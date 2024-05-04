@@ -11,4 +11,7 @@ python trip_IED4_SS1.py
 python close_IED4_SS1.py
 
 # Upload packet capture to AWS
-# scp -i ec2_login_key.pem "$filename" ec2-user@3.149.237.185:~/tripclose/
+scp -i ec2_login_key.pem "$filename" ec2-user@3.149.237.185:~/tripclose/
+
+# Cleanup
+rm "$filename"

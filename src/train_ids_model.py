@@ -1,22 +1,27 @@
 # import numpy as np
 import pandas as pd
 import sys
+import time
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score
 import skops.io as sio
-from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 
 # Training the IDS model with sample DNP3 traffic data
 def main():
     ## Read and Parse Step
-    if len(sys.argv) < 2:
-        print("Usage: python train_ids_model.py <dataset csv>")
+    if len(sys.argv) < 4:
+        print("Usage: python train_ids_model.py <dataset csv> <filename mode (random forest, decision_tree, logistic regression)>")
         return
     
     dataset_csv_filename = sys.argv[1]
+    mode = sys.argv[2]
+    param_size = int(sys.argv[3])
+
     try:
         dataset_df = pd.read_csv(dataset_csv_filename)
     except FileNotFoundError:
@@ -106,63 +111,121 @@ def main():
     X_scaled_dataset = robust_scaler_model.transform(X_dataset)
     minmax_scaler_model = MinMaxScaler().fit(X_scaled_dataset)
     X_scaled_dataset = minmax_scaler_model.transform(X_scaled_dataset)
-    # print(f"scaled dataset {X_scaled_dataset[0, :]}\n")
 
     ## Feature Selection
     feature_selection_model = SelectKBest(score_func=chi2, k=47).fit(X_scaled_dataset, y_dataset)
     X_reduced_dataset = feature_selection_model.transform(X_scaled_dataset)
-    # print(f"reduced dataset {X_reduced_dataset[0, :]}\n")
 
     ## Split training and testing
     # Splitting the dataset into 8-2 parts to train and test
     X_train, X_test, y_train, y_test = train_test_split(X_reduced_dataset, y_dataset, test_size=0.3, random_state=42)
 
-    print("Started Training\n")
 
-    # Train SVC model
-    svm_model = SVC(C=0.1, kernel="rbf").fit(X_train, y_train)
-    print("SVC Finished Training!\n")
-    # Test SVC Accuracy
-    svm_y_pred = svm_model.predict(X_test)
-    svm_accuracy = accuracy_score(y_test, svm_y_pred)
-    svm_precision = precision_score(y_test, svm_y_pred, average=None, zero_division=0)
-    svm_confusion_matrix = confusion_matrix(y_test, svm_y_pred)
-    print(f"SVM Accuracy {svm_accuracy}\n")
-    print(f"SVM Precision {svm_precision}\n")
-
-    # Train DT model
-    dt_model = DecisionTreeClassifier().fit(X_train, y_train)
-    print("DT Finished Training!\n")
-    # Test DT Accuracy
-    dt_y_pred = dt_model.predict(X_test)
-    dt_accuracy = accuracy_score(y_test, dt_y_pred)
-    dt_precision = precision_score(y_test, dt_y_pred, average=None)
-    dt_confusion_matrix = confusion_matrix(y_test, dt_y_pred)
-    print(f"DT Accuracy {dt_accuracy}\n")
-    print(f"DT Precision {dt_precision}\n")
-
-    print(f"SVM Confusion Matrix\n\n {svm_confusion_matrix}\n\n")
-    print(f"DT Confusion Matrix\n\n {dt_confusion_matrix}\n\n")
-
+    if mode == "random_forest":
+        fitted_model, training_time = run_random_forest(X_train, y_train, param_size)
+        model_confusion_matrix = print_model_info("Random Forest", fitted_model, X_test, y_test, training_time)
+    elif mode == "decision_tree":
+        fitted_model, training_time = run_decision_tree(X_train, y_train, param_size, training_time)
+        model_confusion_matrix = print_model_info("Decision Tree", fitted_model, X_test, y_test, training_time)
+    elif mode == "logistic_regression":
+        fitted_model, training_time = run_logistic_regression(X_train, y_train, param_size, training_time)
+        model_confusion_matrix = print_model_info("Logistic Regression", fitted_model, X_test, y_test, training_time)
+    else:
+        print("Invalid mode. Please choose from 'random_forest', 'decision_tree', or 'logistic_regression'.")
+        return
+    
     ## Model Persistance
     # Persist trained model here
-    sio.dump(obj=svm_model, file="./models/svm_model.skops")
-    sio.dump(obj=dt_model, file="./models/dt_model.skops")
+    sio.dump(obj=fitted_model, file=f"./models/{mode}_model.skops")
+
     sio.dump(obj=robust_scaler_model, file="./models/robust_scaler_model.skops")
     sio.dump(obj=minmax_scaler_model, file="./models/minmax_scaler_model.skops")
     sio.dump(obj=feature_selection_model, file="./models/feature_selection_model.skops")
-    sio.dump(obj=svm_confusion_matrix, file="./models/svm_confusion_matrix.skops")
-    sio.dump(obj=dt_confusion_matrix, file="./models/dt_confusion_matrix.skops")
+    sio.dump(obj=model_confusion_matrix, file=f"./models/{mode}_confusion_matrix.skops")
+    
+def print_model_info(model_name, model, X_test, y_test, training_time):
+    model_confusion_matrix = confusion_matrix(y_test, y_pred)
+
+    print(f"""
+        {model_name} Finished Training
+        Best parameters: {model.get_params()}
+        Accuracy {accuracy_score(y_test, y_pred)}
+        Precision {precision_score(y_test, y_pred, average=None)}
+        Confusion Matrix {model_confusion_matrix}
+        Training time {training_time}
+    """) 
+
+    # Predict on the test set
+    start_time = time.time()
+    y_pred = model.predict(X_test)
+    end_time = time.time()
+
+    print(f"""
+        Testing time  {end_time - start_time}
+    """) 
+
+    return model_confusion_matrix
+
+    
+def run_decision_tree(X_train, y_train, param_size):
+    # Hypermarameter Grid
+    dt_param_grid = {
+        'max_depth': [None, 10, 20, 30, 40, 50, 60][:param_size],
+        'min_samples_split': [2, 5, 10, 15, 20, 25, 30][:param_size],
+        'min_samples_leaf': [1, 2, 4, 6, 8, 10, 12][:param_size],
+        'max_features': ['sqrt', 'log2', None][:param_size]
+    }
+    print(f"Decision Tree\n\n{dt_param_grid}\n\n")
+
+    # Train DT model
+    dt_search = GridSearchCV(estimator=DecisionTreeClassifier(), param_grid=dt_param_grid, cv=5, n_jobs=-1)
+
+    start_time = time.time()
+    dt_search.fit(X_train, y_train)
+    end_time = time.time()
+
+    dt_model = dt_search.best_estimator_
+    return dt_model, (end_time - start_time)
+
+
+def run_random_forest(X_train, y_train, param_size):
+    # Random Forest Classifier with GridSearchCV
+    rf_param_grid = {
+        'n_estimators': [50, 100, 200, 300, 400, 500, 600][:param_size],
+        'max_depth': [None, 10, 20, 30, 40, 50, 60][:param_size],
+        'min_samples_split': [2, 5, 10, 15, 20, 25, 30][:param_size],
+        'min_samples_leaf': [1, 2, 4, 6, 8, 10, 12][:param_size],
+        'max_features': ['sqrt', 'log2', None][:param_size]
+    }
+
+    print(f"Random Forest\n\n{rf_param_grid}\n\n")
+    
+    rf_grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), param_grid=rf_param_grid, cv=5, n_jobs=-1)
+    
+    start_time = time.time()
+    rf_grid_search.fit(X_train, y_train)
+    end_time = time.time()
+
+    return rf_grid_search.best_estimator_, (end_time - start_time)
+
+
+
+def run_logistic_regression(X_train, y_train, param_size):
+    # Logistic Regression with GridSearchCV
+    lr_param_grid = {
+        'C': [0.1, 1, 10, 100, 1000, 10000, 100000][:param_size],
+        'penalty': ['l1', 'l2'][:param_size]
+    }
+    print(f"Logistic Regression\n\n{lr_param_grid}\n\n")
+    
+    lr_grid_search = GridSearchCV(estimator=LogisticRegression(max_iter=1000), param_grid=lr_param_grid, cv=5, n_jobs=-1)
+
+    start_time = time.time()
+    lr_grid_search.fit(X_train, y_train)
+    end_time = time.time()
+
+    return lr_grid_search.best_estimator_, end_time - start_time
 
 
 if __name__ == "__main__":
     main()
-
-## TODO
-# Split dataset into training and testing, possibly with
-# ten_fold_cv = ShuffleSplit(n_splits=10, test_size=0.2)
-# Calculate R2 Scores with
-# r2_scores = cross_val_score(model, X, Y, cv=ten_fold_cv)
-
-# Find best hyperparameters with
-# from sklearn.model_selection import GridSearchCV

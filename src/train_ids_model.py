@@ -73,6 +73,7 @@ def main():
         "Idle Max",
         "Idle Min"
     ]
+    
     y_labels_map = {
         "Benign": 0, 
         "DoS": 1, 
@@ -119,12 +120,12 @@ def main():
     print("Started Training\n")
 
     # Train SVC model
-    svm_model = SVC(C=0.1, kernel="sigmoid").fit(X_train, y_train)
+    svm_model = SVC(C=0.1, kernel="rbf").fit(X_train, y_train)
     print("SVC Finished Training!\n")
     # Test SVC Accuracy
     svm_y_pred = svm_model.predict(X_test)
     svm_accuracy = accuracy_score(y_test, svm_y_pred)
-    svm_precision = precision_score(y_test, svm_y_pred, average=None)
+    svm_precision = precision_score(y_test, svm_y_pred, average=None, zero_division=0)
     svm_confusion_matrix = confusion_matrix(y_test, svm_y_pred)
     print(f"SVM Accuracy {svm_accuracy}\n")
     print(f"SVM Precision {svm_precision}\n")

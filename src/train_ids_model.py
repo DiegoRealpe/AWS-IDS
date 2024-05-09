@@ -2,8 +2,9 @@
 import pandas as pd
 import sys
 import time
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_score
+import pprint
 import skops.io as sio
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
@@ -123,46 +124,63 @@ def main():
 
     if mode == "random_forest":
         fitted_model, training_time = run_random_forest(X_train, y_train, param_size)
-        model_confusion_matrix = print_model_info("Random Forest", fitted_model, X_test, y_test, training_time)
     elif mode == "decision_tree":
-        fitted_model, training_time = run_decision_tree(X_train, y_train, param_size, training_time)
-        model_confusion_matrix = print_model_info("Decision Tree", fitted_model, X_test, y_test, training_time)
+        fitted_model, training_time = run_decision_tree(X_train, y_train, param_size)
     elif mode == "logistic_regression":
-        fitted_model, training_time = run_logistic_regression(X_train, y_train, param_size, training_time)
-        model_confusion_matrix = print_model_info("Logistic Regression", fitted_model, X_test, y_test, training_time)
+        fitted_model, training_time = run_logistic_regression(X_train, y_train, param_size)
+    elif mode == "all":
+        rf_fitted_model, rf_training_time = run_random_forest(X_train, y_train, param_size)
+        rf_confusion_matrix = print_model_info("random_forest", rf_fitted_model, X_test, y_test, rf_training_time)
+        sio.dump(obj=rf_fitted_model, file=f"./models/random_forest_model.skops")
+        sio.dump(obj=rf_confusion_matrix, file=f"./models/random_forest_confusion_matrix.skops")
+
+        dt_fitted_model, dt_training_time = run_decision_tree(X_train, y_train, param_size)
+        dt_confusion_matrix = print_model_info("decision_tree", dt_fitted_model, X_test, y_test, dt_training_time)
+        sio.dump(obj=dt_fitted_model, file=f"./models/decision_tree_model.skops")
+        sio.dump(obj=dt_confusion_matrix, file=f"./models/decision_tree_confusion_matrix.skops")
+
+        model_confusion_matrix = print_model_info(mode, dt_fitted_model, X_test, y_test, dt_training_time)
+        lr_fitted_model, lr_training_time = run_logistic_regression(X_train, y_train, param_size)
+        lr_confusion_matrix = print_model_info("logistic_regression", lr_fitted_model, X_test, y_test, lr_training_time)
+        sio.dump(obj=lr_fitted_model, file=f"./models/logistic_regression_model.skops")
+        sio.dump(obj=lr_confusion_matrix, file=f"./models/logistic_regression_confusion_matrix.skops")
     else:
         print("Invalid mode. Please choose from 'random_forest', 'decision_tree', or 'logistic_regression'.")
         return
     
+    model_confusion_matrix = print_model_info(mode, fitted_model, X_test, y_test, training_time)
+
     ## Model Persistance
     # Persist trained model here
-    sio.dump(obj=fitted_model, file=f"./models/{mode}_model.skops")
+    if mode != "all":
+        sio.dump(obj=fitted_model, file=f"./models/{mode}_model.skops")
+        sio.dump(obj=model_confusion_matrix, file=f"./models/{mode}_confusion_matrix.skops")
 
     sio.dump(obj=robust_scaler_model, file="./models/robust_scaler_model.skops")
     sio.dump(obj=minmax_scaler_model, file="./models/minmax_scaler_model.skops")
     sio.dump(obj=feature_selection_model, file="./models/feature_selection_model.skops")
-    sio.dump(obj=model_confusion_matrix, file=f"./models/{mode}_confusion_matrix.skops")
     
 def print_model_info(model_name, model, X_test, y_test, training_time):
-    model_confusion_matrix = confusion_matrix(y_test, y_pred)
 
     print(f"""
         {model_name} Finished Training
-        Best parameters: {model.get_params()}
-        Accuracy {accuracy_score(y_test, y_pred)}
-        Precision {precision_score(y_test, y_pred, average=None)}
-        Confusion Matrix {model_confusion_matrix}
         Training time {training_time}
+        Best parameters: 
     """) 
+    pprint.pprint(model.get_params())
 
     # Predict on the test set
     start_time = time.time()
     y_pred = model.predict(X_test)
     end_time = time.time()
+    model_confusion_matrix = confusion_matrix(y_test, y_pred)
 
     print(f"""
         Testing time  {end_time - start_time}
+        Accuracy {accuracy_score(y_test, y_pred)}
+        Precision {precision_score(y_test, y_pred, average=None)}
     """) 
+    pprint.pprint(model_confusion_matrix)
 
     return model_confusion_matrix
 
@@ -175,7 +193,8 @@ def run_decision_tree(X_train, y_train, param_size):
         'min_samples_leaf': [1, 2, 4, 6, 8, 10, 12][:param_size],
         'max_features': ['sqrt', 'log2', None][:param_size]
     }
-    print(f"Decision Tree\n\n{dt_param_grid}\n\n")
+    print(f"Decision Tree\n\n")
+    pprint.pprint(dt_param_grid)
 
     # Train DT model
     dt_search = GridSearchCV(estimator=DecisionTreeClassifier(), param_grid=dt_param_grid, cv=5, n_jobs=-1)
@@ -197,8 +216,8 @@ def run_random_forest(X_train, y_train, param_size):
         'min_samples_leaf': [1, 2, 4, 6, 8, 10, 12][:param_size],
         'max_features': ['sqrt', 'log2', None][:param_size]
     }
-
-    print(f"Random Forest\n\n{rf_param_grid}\n\n")
+    print(f"Random Forest\n\n")
+    pprint.pprint(rf_param_grid)
     
     rf_grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), param_grid=rf_param_grid, cv=5, n_jobs=-1)
     
@@ -209,14 +228,14 @@ def run_random_forest(X_train, y_train, param_size):
     return rf_grid_search.best_estimator_, (end_time - start_time)
 
 
-
 def run_logistic_regression(X_train, y_train, param_size):
     # Logistic Regression with GridSearchCV
     lr_param_grid = {
         'C': [0.1, 1, 10, 100, 1000, 10000, 100000][:param_size],
         'penalty': ['l1', 'l2'][:param_size]
     }
-    print(f"Logistic Regression\n\n{lr_param_grid}\n\n")
+    print(f"Logistic Regression\n\n")
+    pprint.pprint(lr_param_grid)
     
     lr_grid_search = GridSearchCV(estimator=LogisticRegression(max_iter=1000), param_grid=lr_param_grid, cv=5, n_jobs=-1)
 

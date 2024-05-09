@@ -128,8 +128,7 @@ export class MyEC2Stack extends Stack {
 
     // EC2 Instance
     const instance = new ec2.Instance(this, "IDS_EC2_Instance", {
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.SMALL), // Using t3.micro instance type
-      // instanceType: ec2.InstanceType.of(ec2.InstanceClass.C6A, ec2.InstanceSize.XLARGE8), // Using t3.micro instance type
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.C6A, ec2.InstanceSize.XLARGE8),
       machineImage: ubuntuAmi,
       vpc: vpc,
       keyPair: key,
